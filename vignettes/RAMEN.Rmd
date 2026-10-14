@@ -303,7 +303,7 @@ Once that we have that data sets ready, the overview of the pipeline is the
 following:
 
 ```{r pipeline-fig, echo= FALSE, fig.cap="RAMEN pipeline"}
-knitr::include_graphics("RAMEN_pipeline.png")
+include_graphics("RAMEN_pipeline.png")
 ```
 
 where:  
@@ -345,7 +345,7 @@ library(tidyr)
 library(doParallel)
 
 # Set the parallel backend to use 2 workers
-doParallel::registerDoParallel(2)
+registerDoParallel(2)
 ```
 
 ## Identify VML and summarize their methylation state
@@ -440,8 +440,8 @@ sample <- c(
   rep(0.2, 110),
   sample(x = 0:10, size = 90, replace = TRUE) / 10
 )
-stats::var(sample)
-stats::mad(sample)
+var(sample)
+mad(sample)
 ```
 
 You can see in this simplified example that variability that is not shared by at
@@ -458,7 +458,7 @@ dataset used in RAMEN's first publication (see Navarro-Delgado EI, *et al.*,
 2025, Genome Biology).
 
 ```{r mad-var-fig, echo= FALSE, fig.cap="MAD vs var relation"}
-knitr::include_graphics("mad_var.png")
+include_graphics("mad_var.png")
 ```
 
 Additionally, if we were to take the top 10% of probes as highly variable, we 
@@ -466,7 +466,7 @@ found a 86% overlap between the two methods. So think of this more of a
 fine-tuning parameter rather than a game-changer.
 
 ```{r hvps-mad-var-fig, echo= FALSE, fig.cap="HVPs with mad vs var"}
-knitr::include_graphics("hvps_mad_var.png")
+include_graphics("hvps_mad_var.png")
 ```
 
 ### Note on argument: var_distribution
@@ -514,10 +514,10 @@ can start our analysis! Let's give it a try.
 
 ```{r methylation-input}
 # See the structure of the input DNA methylation data set
-RAMEN::test_methylation_data[1:5, 1:5]
+test_methylation_data[1:5, 1:5]
 
-VML <- RAMEN::findVML(
-  methylation_data = RAMEN::test_methylation_data,
+VML <- findVML(
+  methylation_data = test_methylation_data,
   array_manifest = "IlluminaHumanMethylationEPICv1",
   cor_threshold = 0,
   var_method = "variance",
@@ -528,7 +528,7 @@ VML <- RAMEN::findVML(
 
 # Take a look at the resulting object
 # check the specific threshold that was used to label HVPs
-dplyr::glimpse(VML$var_score_threshold)
+glimpse(VML$var_score_threshold)
 # check the HVPs identified and their variability score
 head(VML$highly_variable_probes)
 # Take a look at the identified VML GRanges object
@@ -561,11 +561,11 @@ VML_gr <- VML$VML
 
 # Example of an epxloration plot
 as(VML_gr, "data.frame") |>
-  dplyr::filter(width > 1) |> # Only plot VMRs, since sVMPs all have a lenght of 1
-  ggplot2::ggplot(aes(x = width)) +
-  ggplot2::geom_histogram(binwidth = 50, fill = "#BAB4D8") +
-  ggplot2::theme_classic() +
-  ggplot2::ggtitle("VMRs width (bp)")
+  filter(width > 1) |> # Only plot VMRs, since sVMPs all have a lenght of 1
+  ggplot(aes(x = width)) +
+  geom_histogram(binwidth = 50, fill = "#BAB4D8") +
+  theme_classic() +
+  ggtitle("VMRs width (bp)")
 ```
 
 Next, we want to summarize the DNAme level of each VML per individual. To do 
@@ -575,7 +575,7 @@ probe is returned. For VMRs, the median DNAme level of all the probes in the
 region is returned per individual as the representative value. 
 
 ```{r run-summarizevml}
-summarized_methyl_VML <- RAMEN::summarizeVML(
+summarized_methyl_VML <- summarizeVML(
   VML = VML_gr,
   methylation_data = test_methylation_data
 )
@@ -604,11 +604,11 @@ with a high potential to associate with DNAme.
 ```{r genotype-input}
 # Take a look at the structure of the genotype information data set, which
 # contains the genomic location of the SNPs in our genotype data set
-head(RAMEN::test_genotype_information)
+head(test_genotype_information)
 
-VML_cis_snps <- RAMEN::findCisSNPs(
+VML_cis_snps <- findCisSNPs(
   VML = VML_gr,
-  genotype_information = RAMEN::test_genotype_information,
+  genotype_information = test_genotype_information,
   distance = 1e+06
 )
 
@@ -632,15 +632,15 @@ We can also explore the resulting object through plots such as the following:
 ```{r cissnps, fig.cap="Disribution of SNPs in cis of VML."}
 VML_cis_snps |>
   as("data.frame") |>
-  dplyr::mutate(surrounding_SNPs = case_when(
+  mutate(surrounding_SNPs = case_when(
     surrounding_SNPs > 3000 ~ 3000,
     TRUE ~ surrounding_SNPs
   )) |>
-  ggplot2::ggplot(aes(x = surrounding_SNPs)) +
-  ggplot2::geom_density() +
-  ggplot2::facet_grid("type") +
-  ggplot2::xlab("Number of cis SNPs") +
-  ggplot2::theme_classic()
+  ggplot(aes(x = surrounding_SNPs)) +
+  geom_density() +
+  facet_grid("type") +
+  xlab("Number of cis SNPs") +
+  theme_classic()
 
 # Check the average number of cis snps in out VML data set
 mean(VML_cis_snps$surrounding_SNPs)
@@ -687,16 +687,16 @@ If your data has missing values, consider
 ```{r selectvars-input}
 # Take a look at the structure of the genotype, environment and covariate data
 # sets, which will be used as input for the variable selection stage
-RAMEN::test_genotype_matrix[1:5, 1:5]
-RAMEN::test_environmental_matrix[1:5, 1:5]
+test_genotype_matrix[1:5, 1:5]
+test_environmental_matrix[1:5, 1:5]
 head(test_covariates)
 
 # Now let's run the function
-selected_variables <- RAMEN::selectVariables(
+selected_variables <- selectVariables(
   VML_wSNPs = VML_cis_snps,
-  genotype_matrix = RAMEN::test_genotype_matrix,
-  environmental_matrix = RAMEN::test_environmental_matrix,
-  covariates = RAMEN::test_covariates,
+  genotype_matrix = test_genotype_matrix,
+  environmental_matrix = test_environmental_matrix,
+  covariates = test_covariates,
   summarized_methyl_VML = summarized_methyl_VML,
   seed = 1
 )
@@ -711,7 +711,7 @@ The output of `RAMEN::selectVariables()` is an object with the VML index, and
 the G and E variables selected for each VML. 
 
 ```{r explore-selectedvars}
-dplyr::glimpse(selected_variables)
+glimpse(selected_variables)
 ```
 
 We can see how using `RAMEN::selectVariables()` reduces the number of variables 
@@ -720,29 +720,29 @@ SNPs per VML on average as seen in Figure \@ref(fig:cissnps)).
 
 ```{r selectedvars, fig.cap="Number of G and E selected variables."}
 selected_variables |>
-  dplyr::left_join(
+  left_join(
     VML_cis_snps |>
       as("data.frame") |>
       select(c(VML_index, type)),
     by = "VML_index"
   ) |>
-  dplyr::transmute(
+  transmute(
     VML_index = VML_index,
     type = type,
     Genome = lengths(selected_genot),
     Exposome = lengths(selected_env)
   ) |>
-  tidyr::pivot_longer(-c(VML_index, type)) |>
+  pivot_longer(-c(VML_index, type)) |>
   dplyr::rename(
     group = name,
     variables = value
   ) |>
-  ggplot2::ggplot(aes(x = type, y = variables)) +
-  ggplot2::geom_violin() +
-  ggplot2::geom_boxplot(width = 0.1, outlier.shape = NA) +
-  ggplot2::facet_wrap(~group) +
-  ggplot2::ggtitle("Selected variables") +
-  ggplot2::theme_classic()
+  ggplot(aes(x = type, y = variables)) +
+  geom_violin() +
+  geom_boxplot(width = 0.1, outlier.shape = NA) +
+  facet_wrap(~group) +
+  ggtitle("Selected variables") +
+  theme_classic()
 ```
 
 It is also expected in real data to have VML where no SNP and/or no 
@@ -806,17 +806,17 @@ the heuristic approach of averaging the relative R contribution of each variable
 over all input orders in the linear model.
 
 ```{r run-lmge}
-lmge_res <- RAMEN::lmGE(
+lmge_res <- lmGE(
   selected_variables = selected_variables,
   summarized_methyl_VML = summarized_methyl_VML,
-  genotype_matrix = RAMEN::test_genotype_matrix,
-  environmental_matrix = RAMEN::test_environmental_matrix,
-  covariates = RAMEN::test_covariates,
+  genotype_matrix = test_genotype_matrix,
+  environmental_matrix = test_environmental_matrix,
+  covariates = test_covariates,
   model_selection = "AIC"
 )
 
 # Check the output
-dplyr::glimpse(lmge_res)
+glimpse(lmge_res)
 ```
 The output of `RAMEN::lmGE()` is a data frame with the following 13 columns:
 
@@ -912,13 +912,13 @@ are typically needed.
 
 ```{r run-nulldistge}
 # Compute the null distribution
-null_dist <- RAMEN::nullDistGE(
+null_dist <- nullDistGE(
   VML_wSNPs = VML_cis_snps,
-  genotype_matrix = RAMEN::test_genotype_matrix,
-  environmental_matrix = RAMEN::test_environmental_matrix,
+  genotype_matrix = test_genotype_matrix,
+  environmental_matrix = test_environmental_matrix,
   summarized_methyl_VML = summarized_methyl_VML,
   permutations = 2,
-  covariates = RAMEN::test_covariates,
+  covariates = test_covariates,
   seed = 1,
   model_selection = "AIC"
 )
@@ -947,11 +947,11 @@ chance increases their probability of having a higher R2_difference.
 null_dist |>
   drop_na() |> # Remove Basal models from the results, where there is no
   # difference between chosen model and basal model
-  ggplot2::ggplot(aes(x = R2_difference)) +
-  ggplot2::geom_histogram() +
-  ggplot2::facet_grid("model_group") +
-  ggplot2::xlab("R2 difference") +
-  ggplot2::theme_classic()
+  ggplot(aes(x = R2_difference)) +
+  geom_histogram() +
+  facet_grid("model_group") +
+  xlab("R2 difference") +
+  theme_classic()
 ```
 
 We suggest using the 95th percentile of those distributions as a threshold to 
@@ -975,7 +975,7 @@ cutoff_joint <- quantile(
 
 # Get a data frame with the final results results
 final_res <- lmge_res |>
-  dplyr::mutate(
+  mutate(
     r2_difference_basal = tot_r_squared - basal_rsquared,
     # Label if the best explanatory model passes its corresponding threshold
     pass_cutoff_threshold = case_when(
@@ -989,14 +989,14 @@ final_res <- lmge_res |>
       TRUE ~ "B"
     )
   ) |>
-  dplyr::select(-pass_cutoff_threshold) # Drop temporary column
+  select(-pass_cutoff_threshold) # Drop temporary column
 
 # Keep only VML that have informative models with out data
 filtered_res <- final_res |>
-  dplyr::filter(!model_group == "B") # Filter based on the cutoff threshold
+  filter(!model_group == "B") # Filter based on the cutoff threshold
 
 # Check the VML with informative models
-dplyr::glimpse(filtered_res)
+glimpse(filtered_res)
 ```
 
 We can see that the final data set in this example dropped almost all of the 
@@ -1014,13 +1014,13 @@ or because they did not pass the R2_difference threshold obtained with
 ```{r finalresults, fig.cap="Variable Methylated Loci best explanatory models"}
 # Plot final results
 final_res |>
-  dplyr::group_by(model_group) |>
-  dplyr::summarise(count = n()) |>
-  ggplot2::ggplot(aes(x = model_group, y = count)) +
-  ggplot2::geom_col() +
-  ggplot2::xlab("Best explanatory model") +
-  ggplot2::ylab("VML") +
-  ggplot2::theme_classic()
+  group_by(model_group) |>
+  summarise(count = n()) |>
+  ggplot(aes(x = model_group, y = count)) +
+  geom_col() +
+  xlab("Best explanatory model") +
+  ylab("VML") +
+  theme_classic()
 
 table(final_res$model_group)
 ```
