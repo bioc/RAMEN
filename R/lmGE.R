@@ -117,7 +117,6 @@
 #'  only with the concomitant variables specified in the *covariates* argument)
 #'  - basal_rsquared: The R2 of the basal model (i.e., model fitted only with
 #'  the concomitant variables specified in the *covariates* argument)
-#' @importFrom foreach %dopar%
 #' @export
 #' @examples
 #' # Evaluate sequentially

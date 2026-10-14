@@ -73,7 +73,6 @@
 #'  model and the model only with the concomitant variables specified in
 #'  *covariates*; BIC/AIC - basal_BIC/basal_BIC in the lmGE output)
 #'
-#' @importFrom foreach %do%
 #' @export
 #' @examples
 #' # Evaluate sequentially

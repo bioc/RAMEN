@@ -19,7 +19,6 @@
 #' @return A GRanges object like VML with an extra column per region containing
 #' the median pairwise correlation.
 #'
-#' @importFrom foreach %dopar%
 #' @export
 #'
 #' @examples

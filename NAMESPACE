@@ -7,8 +7,52 @@ export(medCorVMR)
 export(nullDistGE)
 export(selectVariables)
 export(summarizeVML)
+importFrom(GenomicRanges,
+  GRanges,
+  countOverlaps,
+  elementMetadata,
+  findOverlaps,
+  reduce
+)
+importFrom(IRanges,IRanges)
+importFrom(S4Vectors,
+  Rle,
+  mcols
+)
 importFrom(doRNG,"%dorng%")
+importFrom(dplyr,
+  arrange,
+  desc,
+  filter,
+  group_by,
+  lead,
+  left_join,
+  mutate,
+  rename,
+  select,
+  setdiff,
+  slice,
+  ungroup
+)
 importFrom(foreach,
   "%do%",
-  "%dopar%"
+  "%dopar%",
+  foreach
+)
+importFrom(glmnet,cv.glmnet)
+importFrom(matrixStats,
+  colMedians,
+  rowMads,
+  rowVars
+)
+importFrom(methods,is)
+importFrom(relaimpo,calc.relimp.lm)
+importFrom(stats,
+  AIC,
+  BIC,
+  coef,
+  cor,
+  lm,
+  median,
+  quantile
 )

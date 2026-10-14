@@ -105,7 +105,6 @@
 #'  - selected_env: Column containing lists as values with the selected
 #'  environmental variables.
 #'
-#' @importFrom doRNG %dorng%
 #' @export
 #'
 #' @examples

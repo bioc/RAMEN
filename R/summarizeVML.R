@@ -17,7 +17,6 @@
 #' inside each cell corresponds to the summarized methylation value of said VML
 #' in the corresponding individual. The column names correspond to the VML_index.
 #'
-#' @importFrom foreach %dopar%
 #' @export
 #'
 #' @examples
