@@ -329,10 +329,11 @@ available in the RAMEN package.
 ## Install RAMEN and set up environment
 
 ```{r install, eval=FALSE}
-## Install the RAMEN package from R-universe
-install.packages("RAMEN", repos = c('https://ropensci.r-universe.dev', 'https://cloud.r-project.org'))
-## Alternatively install the RAMEN package from GitHub
-BiocManager::install("ropensci/RAMEN")
+## Install RAMEN
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("RAMEN")
 ```
 
 ```{r setup, warning=FALSE, message=FALSE}
