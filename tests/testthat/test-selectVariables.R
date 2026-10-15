@@ -182,14 +182,14 @@ test_that("selectVariables does not error when a VML has only one candidate SNP"
   VML_one_snp <- VML_cis_snps_test[VML_cis_snps_test$VML_index == "VML1"]
   expect_equal(length(VML_one_snp$SNP[[1]]), 1)
 
+  set.seed(1)
   result <- expect_no_error(
     suppressWarnings(RAMEN::selectVariables(
       VML_wSNPs = VML_one_snp,
       genotype_matrix = RAMEN::test_genotype_matrix,
       environmental_matrix = RAMEN::test_environmental_matrix,
       covariates = NULL,
-      summarized_methyl_VML = summarized_methyl_VML_test,
-      seed = 1
+      summarized_methyl_VML = summarized_methyl_VML_test
     ))
   )
 
@@ -222,13 +222,13 @@ test_that("the variables LASSO selects are the ones selectVariables reports", {
     VML_index = "VML1", SNP = I(list(paste0("g", 1:6)))
   )
 
+  set.seed(1)
   result <- suppressMessages(RAMEN::selectVariables(
     VML_wSNPs = vml,
     genotype_matrix = genot,
     environmental_matrix = env,
     covariates = NULL,
-    summarized_methyl_VML = methyl,
-    seed = 1
+    summarized_methyl_VML = methyl
   ))
 
   # The variables kept by one fit, dropping the intercept

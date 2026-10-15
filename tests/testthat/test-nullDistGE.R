@@ -4,6 +4,7 @@ test_that("nullDistGE output structure is correct", {
   # Put the sequential back-end back so the parallel one does not leak
   # into the tests that run after this one
   on.exit(foreach::registerDoSEQ(), add = TRUE)
+  set.seed(1)
   null_dist <- RAMEN::nullDistGE(
     VML_wSNPs = VML_cis_snps_test[1:5, ],
     genotype_matrix = RAMEN::test_genotype_matrix,
@@ -11,7 +12,6 @@ test_that("nullDistGE output structure is correct", {
     summarized_methyl_VML = summarized_methyl_VML_test,
     permutations = 2,
     covariates = RAMEN::test_covariates,
-    seed = 1,
     model_selection = "AIC"
   ) |>
     suppressMessages()
@@ -26,6 +26,7 @@ test_that("nullDistGE works with BIC", {
   # Put the sequential back-end back so the parallel one does not leak
   # into the tests that run after this one
   on.exit(foreach::registerDoSEQ(), add = TRUE)
+  set.seed(1)
   null_dist_bic <- RAMEN::nullDistGE(
     VML_wSNPs = VML_cis_snps_test[1:2, ],
     genotype_matrix = RAMEN::test_genotype_matrix,
@@ -33,7 +34,6 @@ test_that("nullDistGE works with BIC", {
     summarized_methyl_VML = summarized_methyl_VML_test,
     permutations = 1,
     covariates = RAMEN::test_covariates,
-    seed = 1,
     model_selection = "BIC"
   ) |>
     suppressMessages()
@@ -51,7 +51,6 @@ test_that("nullDistGE throws errors when expected", {
       summarized_methyl_VML = summarized_methyl_VML_test,
       permutations = 2,
       covariates = RAMEN::test_covariates,
-      seed = 1,
       model_selection = "AIC"
     ) |>
       suppressMessages(),
@@ -70,7 +69,6 @@ test_that("nullDistGE throws errors when expected", {
       summarized_methyl_VML = summarized_methyl_VML_test,
       permutations = 2,
       covariates = RAMEN::test_covariates,
-      seed = 1,
       model_selection = "AIC"
     ) |>
       suppressMessages(),
@@ -89,7 +87,6 @@ test_that("nullDistGE throws errors when expected", {
       summarized_methyl_VML = summarized_methyl_VML_test,
       permutations = 2,
       covariates = RAMEN::test_covariates,
-      seed = 1,
       model_selection = "AIC"
     ) |>
       suppressMessages(),
@@ -108,7 +105,6 @@ test_that("nullDistGE throws errors when expected", {
       summarized_methyl_VML = summarized_methyl_VML_test,
       permutations = 2,
       covariates = test_cov_na,
-      seed = 1,
       model_selection = "AIC"
     ) |>
       suppressMessages(),
@@ -127,7 +123,6 @@ test_that("nullDistGE throws errors when expected", {
       summarized_methyl_VML = test_summeth_na,
       permutations = 2,
       covariates = RAMEN::test_covariates,
-      seed = 1,
       model_selection = "AIC"
     ) |>
       suppressMessages(),

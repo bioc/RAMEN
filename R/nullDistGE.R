@@ -34,27 +34,12 @@
 #' distribution and reduces the computational time. For further information
 #' please read the RAMEN paper (https://doi.org/10.1186/s13059-025-03864-4).
 #'
-#' **Reproducibility and the use of the seed**
+#' **Reproducibility**
 #'
 #' Random numbers are drawn in this function when the permutation orders are
 #' created, and again inside each permutation during the cross-validation and
-#' LASSO stages of *selectVariables()*. Setting *seed* makes the whole run
-#' reproducible.
-#'
-#' Note that the same *seed* value is handed to *selectVariables()* in every
-#' permutation. For a given VML the cross-validation folds are therefore
-#' identical from one permutation to the next, and what differs between
-#' permutations is the shuffled G and E data. The permutations are, in that
-#' sense, not fully independent draws with respect to the cross-validation
-#' randomness. This holds one source of variability fixed rather than biasing
-#' the delta R squared values, and its practical effect is small because the
-#' null distribution pools delta R squared across all the VML in the dataset,
-#' which is where nearly all of its draws come from. It is nonetheless worth
-#' keeping in mind when interpreting the spread of the distribution.
-#'
-#' The seed is applied for the duration of this call only: the random number
-#' generator state found on entry is restored when the function returns, so a
-#' seeded run leaves the global random stream untouched.
+#' LASSO stages of *selectVariables()*. Calling *set.seed()* before this
+#' function is highly recommended, so that the whole run is reproducible.
 #'
 #' @inheritParams selectVariables
 #' @inheritParams lmGE
@@ -103,6 +88,8 @@
 #'
 #' ## Simulate null distribution of G and E contributions on DNAme variability
 #' ## We will only run one permutation for demonstration purposes
+#' ## Setting a seed beforehand makes the permutations reproducible
+#' set.seed(1)
 #' null_dist <- nullDistGE(
 #'   VML_wSNPs = VML_with_cis_snps,
 #'   genotype_matrix = test_genotype_matrix,
@@ -111,7 +98,6 @@
 #'   # Use one permutation for demonstration purposes
 #'   permutations = 1,
 #'   covariates = test_covariates,
-#'   seed = 1,
 #'   model_selection = "AIC"
 #' )
 nullDistGE <- function(VML_wSNPs,
@@ -120,7 +106,6 @@ nullDistGE <- function(VML_wSNPs,
                        summarized_methyl_VML,
                        permutations = 5,
                        covariates = NULL,
-                       seed = NULL,
                        model_selection = "AIC") {
   #### Argument check ####
   ## Check that genotype_matrix, environmental_matrix, and covariates (in case
@@ -135,7 +120,6 @@ nullDistGE <- function(VML_wSNPs,
   argument_check(permutations, "numeric")
   if (permutations < 1) stop("Please provide a permutation number >= 1")
   if (!is.null(covariates)) argument_check(covariates, "matrix")
-  if (!is.null(seed)) argument_check(seed, "numeric")
   argument_char_options(object = model_selection, options = c("AIC", "BIC"))
   # Matrices have only finite numeric values
   finite_numeric_check(genotype_matrix)
@@ -147,20 +131,6 @@ nullDistGE <- function(VML_wSNPs,
 
   #### Shuffle data ####
   # Set shuffle order
-  ## Seed the RNG for this call only. The caller's random stream is captured
-  ## first and put back by on.exit(), so that a seeded run here does not leave
-  ## the global generator in a different state than it found it.
-  if (!is.null(seed)) {
-    if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
-      entry_seed <- get(".Random.seed", envir = globalenv(), inherits = FALSE)
-      on.exit(assign(".Random.seed", entry_seed, envir = globalenv()),
-              add = TRUE)
-    } else {
-      ## set.seed() below always creates it, so rm() cannot warn here.
-      on.exit(rm(".Random.seed", envir = globalenv()), add = TRUE)
-    }
-    set.seed(seed)
-  }
   # Initialize permutation object
   permutation_order <- replicate(permutations,
                                  sample(rownames(summarized_methyl_VML)),
@@ -189,8 +159,7 @@ nullDistGE <- function(VML_wSNPs,
       genotype_matrix = permutated_genotype,
       environmental_matrix = permutated_environment,
       covariates = covariates,
-      summarized_methyl_VML = summarized_methyl_VML,
-      seed = seed
+      summarized_methyl_VML = summarized_methyl_VML
     )
 
     message("Starting lmGE in permutation ", i, " of ", permutations)

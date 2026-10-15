@@ -10,8 +10,7 @@ selectVariables(
   genotype_matrix,
   environmental_matrix,
   covariates = NULL,
-  summarized_methyl_VML,
-  seed = NULL
+  summarized_methyl_VML
 )
 }
 \arguments{
@@ -48,13 +47,6 @@ summarized methylation. It is suggested to use the output of
 names of the columns must correspond to the index of said VML, and it must
 match the index of VML_wSNPs$VML_index. The names of the rows must correspond to
 the sample IDs, and must match with the IDs of the other matrices.}
-
-\item{seed}{An integer number that initializes a pseudo-random number
-generator. Random numbers in this function are created during the lambda
-cross validation and the LASSO stages. Setting a seed is highly encouraged
-for result reproducibility.
-\strong{The seed is applied for the duration of this call only; the global random
-stream is restored when the function returns}.}
 }
 \value{
 A data frame with three columns:
@@ -109,11 +101,8 @@ independent models and compared, the overfitting issue of using lambda.min
 does not impose a big concern. After finding the best lambda value, the
 sequence of models is fit by coordinate descent using \emph{glmnet()}. Random
 numbers in this function are created during the lambda cross validation and
-the LASSO stages. Setting a seed is highly encouraged for result
-reproducibility using the \emph{seed} argument. The seed is applied for the
-duration of this call only: the random number generator state found on
-entry is restored when the function returns, so a seeded run leaves the
-global random stream untouched.
+the LASSO stages. Calling \emph{set.seed()} before this function is highly
+recommended, so that its results are reproducible.
 
 This function supports parallel computing for increased speed. To do so,
 you have to set the parallel back-end in your R session before running the
@@ -156,13 +145,14 @@ summarized_methyl_VML <- RAMEN::summarizeVML(
 )
 
 ## Select relevant genotype and environmental variables
+## Setting a seed beforehand makes the variable selection reproducible
+set.seed(1)
 selected_vars <- RAMEN::selectVariables(
   VML_wSNPs = VML_with_cis_snps,
   genotype_matrix = RAMEN::test_genotype_matrix,
   environmental_matrix = RAMEN::test_environmental_matrix,
   covariates = RAMEN::test_covariates,
-  summarized_methyl_VML = summarized_methyl_VML,
-  seed = 1
+  summarized_methyl_VML = summarized_methyl_VML
 )
 
 }

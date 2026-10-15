@@ -43,11 +43,8 @@
 #' does not impose a big concern. After finding the best lambda value, the
 #' sequence of models is fit by coordinate descent using *glmnet()*. Random
 #' numbers in this function are created during the lambda cross validation and
-#' the LASSO stages. Setting a seed is highly encouraged for result
-#' reproducibility using the *seed* argument. The seed is applied for the
-#' duration of this call only: the random number generator state found on
-#' entry is restored when the function returns, so a seeded run leaves the
-#' global random stream untouched.
+#' the LASSO stages. Calling *set.seed()* before this function is highly
+#' recommended, so that its results are reproducible.
 #'
 #' This function supports parallel computing for increased speed. To do so,
 #' you have to set the parallel back-end in your R session before running the
@@ -92,13 +89,6 @@
 #' be adjusted for in the final GxE models (e.g., cell type proportions, age,
 #' etc.). Each column should correspond to a covariate and each row to an
 #' individual. Row names must correspond to the individual IDs.
-#' @param seed An integer number that initializes a pseudo-random number
-#' generator. Random numbers in this function are created during the lambda
-#' cross validation and the LASSO stages. Setting a seed is highly encouraged
-#' for result reproducibility.
-#' **The seed is applied for the duration of this call only; the global random
-#' stream is restored when the function returns**.
-#'
 #' @return A data frame with three columns:
 #'  - VML_index: Unique VML ID.
 #'  - selected_genot: Column containing lists as values with the selected SNPs.
@@ -135,21 +125,21 @@
 #' )
 #'
 #' ## Select relevant genotype and environmental variables
+#' ## Setting a seed beforehand makes the variable selection reproducible
+#' set.seed(1)
 #' selected_vars <- RAMEN::selectVariables(
 #'   VML_wSNPs = VML_with_cis_snps,
 #'   genotype_matrix = RAMEN::test_genotype_matrix,
 #'   environmental_matrix = RAMEN::test_environmental_matrix,
 #'   covariates = RAMEN::test_covariates,
-#'   summarized_methyl_VML = summarized_methyl_VML,
-#'   seed = 1
+#'   summarized_methyl_VML = summarized_methyl_VML
 #' )
 #'
 selectVariables <- function(VML_wSNPs,
                             genotype_matrix,
                             environmental_matrix,
                             covariates = NULL,
-                            summarized_methyl_VML,
-                            seed = NULL) {
+                            summarized_methyl_VML) {
   #### Arguments check ####
   # Check correct input class
   argument_check(VML_wSNPs, "GRanges")
@@ -157,7 +147,6 @@ selectVariables <- function(VML_wSNPs,
   if (!is.null(environmental_matrix)) argument_check(environmental_matrix, "matrix")
   if (!is.null(covariates)) argument_check(covariates, "matrix")
   argument_check(summarized_methyl_VML, "matrix")
-  if (!is.null(seed)) argument_check(seed, "numeric")
   columns_exist(S4Vectors::mcols(VML_wSNPs), c("VML_index", "SNP"))
   argument_check(VML_wSNPs$SNP, "list")
   argument_check(VML_wSNPs$VML_index, "character")
@@ -187,20 +176,6 @@ selectVariables <- function(VML_wSNPs,
   if (!is.null(environmental_matrix)) finite_numeric_check(environmental_matrix)
   if (!is.null(covariates)) finite_numeric_check(covariates)
   finite_numeric_check(summarized_methyl_VML)
-  ## Seed the RNG for this call only. The caller's random stream is captured
-  ## first and put back by on.exit(), so that a seeded run here does not leave
-  ## the global generator in a different state than it found it.
-  if (!is.null(seed)) {
-    if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
-      entry_seed <- get(".Random.seed", envir = globalenv(), inherits = FALSE)
-      on.exit(assign(".Random.seed", entry_seed, envir = globalenv()),
-              add = TRUE)
-    } else {
-      ## set.seed() below always creates it, so rm() cannot warn here.
-      on.exit(rm(".Random.seed", envir = globalenv()), add = TRUE)
-    }
-    set.seed(seed)
-  }
   k <- NULL # To avoid R CMD check note about undefined global variable
 
   #### Resolve per-VML look-ups once, up front ####

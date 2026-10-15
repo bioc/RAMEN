@@ -725,21 +725,21 @@ test_genotype_matrix[1:5, 1:5]
 test_environmental_matrix[1:5, 1:5]
 head(test_covariates)
 
-# Now let's run the function
+# Now let's run the function. Setting a seed beforehand makes the variable
+# selection reproducible
+set.seed(1)
 selected_variables <- selectVariables(
   VML_wSNPs = VML_cis_snps,
   genotype_matrix = test_genotype_matrix,
   environmental_matrix = test_environmental_matrix,
   covariates = test_covariates,
-  summarized_methyl_VML = summarized_methyl_VML,
-  seed = 1
+  summarized_methyl_VML = summarized_methyl_VML
 )
 ```
 
-Since LASSO makes use of Random Number Generation, setting a seed is highly 
-encouraged for result's reproducibility using the *seed* argument. As a note, 
-setting a seed inside of this function modifies the seed globally (which is R's 
-default behavior). 
+Since LASSO makes use of Random Number Generation, calling `set.seed()` before 
+`selectVariables()` is highly encouraged for the reproducibility of the 
+results. 
 
 The output of `RAMEN::selectVariables()` is an object with the VML index, and 
 the G and E variables selected for each VML. 
@@ -945,7 +945,9 @@ analysis. In real data sets where we have thousands of probes, ~5-10 permutation
 are typically needed. 
 
 ```{r run-nulldistge}
-# Compute the null distribution
+# Compute the null distribution. Setting a seed beforehand makes the
+# permutations reproducible
+set.seed(1)
 null_dist <- nullDistGE(
   VML_wSNPs = VML_cis_snps,
   genotype_matrix = test_genotype_matrix,
@@ -953,7 +955,6 @@ null_dist <- nullDistGE(
   summarized_methyl_VML = summarized_methyl_VML,
   permutations = 2,
   covariates = test_covariates,
-  seed = 1,
   model_selection = "AIC"
 )
 

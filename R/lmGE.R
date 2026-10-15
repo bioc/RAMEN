@@ -146,13 +146,13 @@
 #' )
 #'
 #' ## Select relevant genotype and environmental variables
+#' set.seed(1)
 #' selected_vars <- RAMEN::selectVariables(
 #'   VML_wSNPs = VML_with_cis_snps,
 #'   genotype_matrix = RAMEN::test_genotype_matrix,
 #'   environmental_matrix = RAMEN::test_environmental_matrix,
 #'   covariates = RAMEN::test_covariates,
-#'   summarized_methyl_VML = summarized_methyl_VML,
-#'   seed = 1
+#'   summarized_methyl_VML = summarized_methyl_VML
 #' )
 #'
 #' ## Fit G, E, G+E and GxE models and select the winning one

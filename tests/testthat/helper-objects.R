@@ -22,11 +22,11 @@ summarized_methyl_VML_test <- RAMEN::summarizeVML(
   methylation_data = test_methylation_data
 )
 
+set.seed(1)
 suppressMessages(selected_variables_test <- RAMEN::selectVariables(
   VML_wSNPs = VML_cis_snps_test,
   genotype_matrix = RAMEN::test_genotype_matrix,
   environmental_matrix = RAMEN::test_environmental_matrix,
   covariates = RAMEN::test_covariates,
-  summarized_methyl_VML = summarized_methyl_VML_test,
-  seed = 1
+  summarized_methyl_VML = summarized_methyl_VML_test
 ))

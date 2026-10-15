@@ -223,13 +223,13 @@ head(VML_cis_snps)
     `selectVariables()`.
 
 ``` r
+set.seed(1)
 selected_variables <- RAMEN::selectVariables(
   VML_wSNPs = VML_cis_snps,
   genotype_matrix = RAMEN::test_genotype_matrix,
   environmental_matrix = RAMEN::test_environmental_matrix,
   covariates = RAMEN::test_covariates,
-  summarized_methyl_VML = summarized_methyl_VML,
-  seed = 1
+  summarized_methyl_VML = summarized_methyl_VML
 )
 #> Loading required package: Matrix
 #> Loaded glmnet 5.0
@@ -280,6 +280,7 @@ head(lmge_res)
     explanatory models selected by *lmGE()*.
 
 ``` r
+set.seed(1)
 null_dist <- RAMEN::nullDistGE(
   VML_wSNPs = VML_cis_snps,
   genotype_matrix = RAMEN::test_genotype_matrix,
@@ -287,7 +288,6 @@ null_dist <- RAMEN::nullDistGE(
   summarized_methyl_VML = summarized_methyl_VML,
   permutations = 1,
   covariates = RAMEN::test_covariates,
-  seed = 1,
   model_selection = "AIC"
 )
 #> Starting permutation 1 of 1
