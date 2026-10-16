@@ -87,8 +87,6 @@ map_revmap_names <- function(positions, manifest_hvp) {
   ## var_distribution == "ultrastable": resolve the ultrastable probe names in
   ## the naming scheme of the array at hand
   if (is.data.frame(array_manifest)) {
-    # A custom manifest is expected to use the 450k/EPICv1 probe names. The
-    # number of ultrastable probes present was already checked further up.
     return(stats::quantile(
       var_scores[(row.names(var_scores) %in% RAMEN::ultrastable_cpgs), ],
       var_threshold_percentile
