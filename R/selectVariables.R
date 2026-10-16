@@ -9,12 +9,20 @@
 #' @param x Predictor matrix. Its last `ncol_covariates` columns are the
 #' covariates.
 #' @param y Response matrix, i.e. the summarized methylation of one VML.
+#' @param fit Whether there is anything to fit. When `FALSE` no model is fitted
+#' and no variable is selected, which covers the VML that have no candidate
+#' SNPs, and the runs where no environmental data was given.
 #' @param ncol_covariates Number of covariate columns at the right of `x`.
 #' @param covariate_names Names of the covariates, removed from the selection.
 #'
 #' @return A character vector with the names of the selected variables.
 #' @noRd
-.lassoSelect <- function(x, y, ncol_covariates, covariate_names) {
+.lassoSelect <- function(x, y, fit, ncol_covariates, covariate_names) {
+  # Nothing to fit, so nothing is selected
+  if (!fit) return(character(0))
+  # glmnet requires two or more predictor columns. With a single candidate
+  # there is nothing to select against, so it is kept as it is.
+  if (ncol(x) < 2) return(colnames(x))
   coefficients <- stats::coef(
     glmnet::cv.glmnet(
       x = x, # Variables
@@ -285,50 +293,28 @@ selectVariables <- function(VML_wSNPs,
       ncol_covariates <- 0
     }
 
-    ### Run variable selection
+    ### Run variable selection with the optimal lambda found by k-fold
+    ### cross-validation. Each model is only fitted when it has variables to
+    ### fit, which .lassoSelect() takes care of through its `fit` argument.
+    any_env <- !is.null(environ_VMLi)
     #### Genotype only model ####
-    # Get coefficients with the optimal lambda found by k-fold cross-validation
-    if (any_snp && ncol(genot_VMLi) >= 2) { # glmnet requires 2+ predictor columns
-      selected_vars_genot <- .lassoSelect(
-        x = genot_VMLi, y = summVMLi,
-        ncol_covariates = ncol_covariates,
-        covariate_names = colnames(covariates)
-      )
-    } else if (any_snp) {
-      # Only one SNP and no covariates: glmnet needs 2+ columns to run, and
-      # with a single candidate there is nothing to select against, so keep it
-      selected_vars_genot <- colnames(genot_VMLi)
-    } else { # Catch cases when VML dont have surrounding genotyped SNPs
-      selected_vars_genot <- character(0)
-    }
-
+    selected_vars_genot <- .lassoSelect(
+      x = genot_VMLi, y = summVMLi, fit = any_snp,
+      ncol_covariates = ncol_covariates,
+      covariate_names = colnames(covariates)
+    )
     #### Environment only ####
-    # Get coefficients with the optimal lambda found by k-fold cross-validation
-    # Catch scenario where users would not add environmental variables
-    if (!is.null(environ_VMLi)) {
-      selected_vars_env <- .lassoSelect(
-        x = environ_VMLi, y = summVMLi,
-        ncol_covariates = ncol_covariates,
-        covariate_names = colnames(covariates)
-      )
-
-      #### Joint (environment + genotype) ####
-      if (any_snp) {
-        # only when we have Genotype and Environmental variables.
-        # Get coefficients with the optimal lambda found by k-fold
-        # cross-validation
-        selected_vars_joint <- .lassoSelect(
-          x = environ_genot_VMLi, y = summVMLi,
-          ncol_covariates = ncol_covariates,
-          covariate_names = colnames(covariates)
-        )
-      } else {
-        selected_vars_joint <- character(0)
-      }
-    } else {
-      selected_vars_env <- character(0)
-      selected_vars_joint <- character(0)
-    }
+    selected_vars_env <- .lassoSelect(
+      x = environ_VMLi, y = summVMLi, fit = any_env,
+      ncol_covariates = ncol_covariates,
+      covariate_names = colnames(covariates)
+    )
+    #### Joint (environment + genotype) ####
+    selected_vars_joint <- .lassoSelect(
+      x = environ_genot_VMLi, y = summVMLi, fit = any_snp && any_env,
+      ncol_covariates = ncol_covariates,
+      covariate_names = colnames(covariates)
+    )
 
     #### Merge results ####
     selected_union_genot <- c(selected_vars_genot, selected_vars_joint) |>
