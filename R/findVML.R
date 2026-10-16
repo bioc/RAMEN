@@ -24,6 +24,209 @@ map_revmap_names <- function(positions, manifest_hvp) {
   row.names(manifest_hvp)[positions]
 }
 
+#' Resolve the array manifest
+#'
+#' Turns the name of a supported Illumina array into its manifest, taken from
+#' the corresponding Bioconductor annotation package. A manifest supplied
+#' directly as a data frame is returned unchanged.
+#'
+#' @param array_manifest Either the name of a supported array or a data frame.
+#'
+#' @return A data frame with the probe locations, with the probes as row names.
+#' @noRd
+.resolveManifest <- function(array_manifest) {
+  if (!is.character(array_manifest)) return(array_manifest)
+  if (array_manifest == "IlluminaHumanMethylation450k") {
+    if (!requireNamespace("IlluminaHumanMethylation450kanno.ilmn12.hg19",
+                          quietly = TRUE)) {
+      stop("Package \"IlluminaHumanMethylation450kanno.ilmn12.hg19\"  ",
+           "must be installed to use this function.",
+           call. = FALSE)
+    }
+    data.frame(IlluminaHumanMethylation450kanno.ilmn12.hg19::Locations)
+  } else if (array_manifest == "IlluminaHumanMethylationEPICv1") {
+    if (!requireNamespace("IlluminaHumanMethylationEPICanno.ilm10b4.hg19",
+                          quietly = TRUE)) {
+      stop("Package 'IlluminaHumanMethylationEPICanno.ilm10b4.hg19' ",
+           "must be installed to use this function.",
+           call. = FALSE)
+    }
+    data.frame(IlluminaHumanMethylationEPICanno.ilm10b4.hg19::Locations)
+  } else if (array_manifest == "IlluminaHumanMethylationEPICv2") {
+    if (!requireNamespace("IlluminaHumanMethylationEPICv2anno.20a1.hg38",
+                          quietly = TRUE)) {
+      stop("Package 'IlluminaHumanMethylationEPICv2anno.20a1.hg38' ",
+           "must be installed to use this function.",
+           call. = FALSE)
+    }
+    data.frame(IlluminaHumanMethylationEPICv2anno.20a1.hg38::Locations)
+  }
+}
+
+#' Compute the variability threshold used to call Highly Variable Probes
+#'
+#' The threshold is a percentile of the variability scores. Depending on
+#' `var_distribution` the percentile is taken over every probe in the data set,
+#' or only over the ultrastable probes, which are the ones expected to carry
+#' little biological variability.
+#'
+#' @param var_scores Data frame of variability scores, probes as row names.
+#' @param var_distribution Either "all" or "ultrastable".
+#' @param var_threshold_percentile Percentile used as the threshold.
+#' @param array_manifest The manifest, or the name of a supported array, used
+#' to resolve the ultrastable probe names for the array at hand.
+#'
+#' @return The variability score threshold.
+#' @noRd
+.varThreshold <- function(var_scores, var_distribution,
+                          var_threshold_percentile, array_manifest) {
+  Methyl450_Loci <- NULL # Binding for the tidyverse framework
+  if (var_distribution == "all") {
+    return(stats::quantile(var_scores$var_score, var_threshold_percentile))
+  }
+  ## var_distribution == "ultrastable": resolve the ultrastable probe names in
+  ## the naming scheme of the array at hand
+  if (is.data.frame(array_manifest)) {
+    # A custom manifest is expected to use the 450k/EPICv1 probe names. The
+    # number of ultrastable probes present was already checked further up.
+    return(stats::quantile(
+      var_scores[(row.names(var_scores) %in% RAMEN::ultrastable_cpgs), ],
+      var_threshold_percentile
+    ))
+  }
+  if (array_manifest == "IlluminaHumanMethylationEPICv2") {
+    # The EPICv2 manifest renames the probes, so the ultrastable ones have to
+    # be looked up through their 450k identifiers
+    if (!requireNamespace("IlluminaHumanMethylationEPICv2anno.20a1.hg38",
+                          quietly = TRUE)) {
+      stop("Package 'IlluminaHumanMethylationEPICv2anno.20a1.hg38' must ",
+           "be installed to use this function.",
+           call. = FALSE)
+    }
+    ultrastable <- IlluminaHumanMethylationEPICv2anno.20a1.hg38::Other |>
+      data.frame() |>
+      dplyr::filter(Methyl450_Loci %in% RAMEN::ultrastable_cpgs) |>
+      rownames()
+  } else {
+    # EPICv1 and 450k use the same probe names as the ultrastable probes
+    ultrastable <- RAMEN::ultrastable_cpgs
+  }
+  if (sum(row.names(var_scores) %in% ultrastable) < 25) {
+    stop("Your data set should contain more than 25 ultrastable probes ",
+         "(RAMEN::ultrastable_cpgs) to compute a variance threshold. If ",
+         "not, please get the variability threshold based on all the ",
+         "probes in your data set (var_distribution = 'all', ",
+         "var_threshold_percentile = 0.9).")
+  }
+  var_threshold <- stats::quantile(
+    var_scores[(row.names(var_scores) %in% ultrastable), ],
+    var_threshold_percentile
+  )
+  var_threshold
+}
+
+#' Group probes into regions
+#'
+#' Builds a GenomicRanges object out of a probe manifest and reduces it, so
+#' that probes closer to each other than `max_distance` end up in the same
+#' region. Each region carries the number of probes it contains and their
+#' names.
+#'
+#' @param probe_df Manifest with the columns "TargetID", "chr", "pos" and
+#' "strand", sorted by chromosome.
+#' @param max_distance Maximum distance between two probes of a region.
+#' @param count_name Name given to the metadata column holding the number of
+#' probes per region.
+#'
+#' @return A GRanges object with one range per region.
+#' @noRd
+.probeToRegions <- function(probe_df, max_distance, count_name) {
+  seqnames_table <- table(probe_df$chr)
+  gr <- GenomicRanges::GRanges(
+    seqnames = S4Vectors::Rle(names(seqnames_table),
+                              # Number of chromosome; as.numeric to convert
+                              # from table to numeric vector
+                              as.numeric(seqnames_table)),
+    ranges = IRanges::IRanges(probe_df$pos,
+                              end = probe_df$pos,
+                              names = probe_df$TargetID
+    ),
+    # Rle() run length encodes the vector itself, so the strands only have to
+    # be walked once rather than once for the values and again for the lengths
+    strand = S4Vectors::Rle(as.character(probe_df$strand))
+  )
+  regions <- GenomicRanges::reduce(gr,
+                                   with.revmap = TRUE,
+                                   min.gapwidth = max_distance)
+  # Add the number of probes in each region
+  S4Vectors::mcols(regions)[[count_name]] <- vapply(
+    S4Vectors::mcols(regions)$revmap,
+    length,
+    FUN.VALUE = numeric(1)
+  )
+  # Substitute revmap with the name of the probes in each region
+  S4Vectors::mcols(regions)$probes <- lapply(S4Vectors::mcols(regions)$revmap,
+                                             map_revmap_names,
+                                             probe_df)
+  # Remove revmap mcol
+  S4Vectors::mcols(regions)$revmap <- NULL
+  regions
+}
+
+#' Capture the canonical Variable Methylated Regions
+#'
+#' Keeps the candidate regions that hold more than one probe and, of those, the
+#' ones whose probes are correlated with each other.
+#'
+#' @param candidate_VMRs Candidate regions, as returned by `.probeToRegions()`.
+#' @param methylation_data The methylation data, used to compute correlations.
+#' @param cor_threshold Minimum median pairwise correlation of a region.
+#'
+#' @return A GRanges object with the VMRs.
+#' @noRd
+.findVMRs <- function(candidate_VMRs, methylation_data, cor_threshold) {
+  VMRs <- candidate_VMRs[
+    (GenomicRanges::elementMetadata(candidate_VMRs)[, "n_VMPs"] > 1)]
+  ### Check for correlation between probes only if we have VMRs
+  if (length(VMRs) > 0) {
+    # Compute the median correlation of each region
+    VMRs <- medCorVMR(VML = VMRs, methylation_data = methylation_data)
+    # Remove VMRs whose CpGs are not correlated
+    VMRs <- VMRs[
+      (GenomicRanges::elementMetadata(VMRs)[, "median_correlation"] >
+         cor_threshold)]
+  } else {
+    warning("No VMRs were found in this data set")
+  }
+  VMRs
+}
+
+#' Capture the sparse Variable Methylated Probes
+#'
+#' A candidate region is a sparse Variable Methylated Probe when it holds a
+#' single highly variable probe and that probe has no neighbour within
+#' `max_distance` on the array, i.e. it is one of the lonely probes.
+#'
+#' @param candidate_VMRs Candidate regions, as returned by `.probeToRegions()`.
+#' @param lonely_probes Names of the probes that sit alone in their region.
+#'
+#' @return A GRanges object with the sVMPs.
+#' @noRd
+.findSVMPs <- function(candidate_VMRs, lonely_probes) {
+  probes_mcol <- GenomicRanges::elementMetadata(candidate_VMRs)[, "probes"]
+  single_probe_region <- lengths(probes_mcol) == 1
+  is_sVMP <- logical(length(candidate_VMRs))
+  is_sVMP[single_probe_region] <-
+    unlist(probes_mcol[single_probe_region]) %in% lonely_probes
+  sVMPs <- candidate_VMRs[is_sVMP]
+  # Add a column of NAs under the name of median_correlation to match the VMRs
+  S4Vectors::mcols(sVMPs)$median_correlation <-
+    rep(NA, nrow(S4Vectors::mcols(sVMPs)))
+  sVMPs
+}
+
+
+
 
 #' Identify Variable Methylated Loci in microarrays
 #'
@@ -244,94 +447,11 @@ findVML <- function(methylation_data,
   #### Get HVP threshold ####
   message("Identifying Highly Variable Probes...")
   # Get the variability threshold
-  if (var_distribution == "all") {
-    var_threshold <- stats::quantile(
-      var_scores$var_score,
-      var_threshold_percentile
-    )
-  } else if (var_distribution == "ultrastable") {
-    if (is.data.frame(array_manifest)) {
-      # Subset only ultrastable probes
-      var_threshold <- stats::quantile(
-        var_scores[(row.names(var_scores) %in% RAMEN::ultrastable_cpgs), ],
-        var_threshold_percentile
-      )
-    } else if (array_manifest == "IlluminaHumanMethylationEPICv2") {
-      # Get the name of the ultrastable probes in the EPICv2 format
-      if (!requireNamespace("IlluminaHumanMethylationEPICv2anno.20a1.hg38",
-                            quietly = TRUE)) {
-        stop("Package 'IlluminaHumanMethylationEPICv2anno.20a1.hg38' must ",
-             "be installed to use this function.",
-             call. = FALSE)
-      }
-      epicv2_ultrastable_cpgs <- IlluminaHumanMethylationEPICv2anno.20a1.hg38::Other |>
-        data.frame() |>
-        dplyr::filter(Methyl450_Loci %in% RAMEN::ultrastable_cpgs) |>
-        rownames()
-      var_threshold <- stats::quantile(
-        var_scores[(row.names(var_scores) %in% epicv2_ultrastable_cpgs), ],
-        var_threshold_percentile
-      )
-      if (sum(row.names(var_scores) %in% epicv2_ultrastable_cpgs) < 25) {
-        stop("Your data set should contain more than 25 ultrastable probes ",
-             "(RAMEN::ultrastable_cpgs) to compute a variance threshold. If ",
-             "not, please get the variability threshold based on all the ",
-             "probes in your data set (var_distribution = 'all', ",
-             "var_threshold_percentile = 0.9).")
-      }
-    } else {
-      # EPICv1 or 450k (same probe name as the ultrastable probes)
-      # Subset only ultrastable probes
-      var_threshold <- stats::quantile(
-        var_scores[(row.names(var_scores) %in% RAMEN::ultrastable_cpgs), ],
-        var_threshold_percentile
-      )
-      if (sum(row.names(var_scores) %in% RAMEN::ultrastable_cpgs) < 25) {
-        stop("Your data set should contain more than 25 ultrastable probes ",
-             "(RAMEN::ultrastable_cpgs) to compute a variance threshold. If ",
-             "not, please get the variability threshold based on all the ",
-             "probes in your data set (var_distribution = 'all', ",
-             "var_threshold_percentile = 0.9).")
-      }
-    }
-  }
+  var_threshold <- .varThreshold(var_scores, var_distribution,
+                                 var_threshold_percentile, array_manifest)
   # Replace the array manifest if the user provided a string with the name of
   # the array
-  if (is.character(array_manifest)) {
-    if (array_manifest == "IlluminaHumanMethylation450k") {
-      if (!requireNamespace("IlluminaHumanMethylation450kanno.ilmn12.hg19",
-        quietly = TRUE
-      )) {
-        stop("Package \"IlluminaHumanMethylation450kanno.ilmn12.hg19\"  ",
-             "must be installed to use this function.",
-             call. = FALSE
-        )
-      }
-      manifest <- data.frame(IlluminaHumanMethylation450kanno.ilmn12.hg19::Locations)
-    } else if (array_manifest == "IlluminaHumanMethylationEPICv1") {
-      if (!requireNamespace("IlluminaHumanMethylationEPICanno.ilm10b4.hg19",
-        quietly = TRUE
-      )) {
-        stop("Package 'IlluminaHumanMethylationEPICanno.ilm10b4.hg19' ",
-             "must be installed to use this function.",
-             call. = FALSE
-        )
-      }
-      manifest <- data.frame(IlluminaHumanMethylationEPICanno.ilm10b4.hg19::Locations)
-    } else if (array_manifest == "IlluminaHumanMethylationEPICv2") {
-      if (!requireNamespace("IlluminaHumanMethylationEPICv2anno.20a1.hg38",
-        quietly = TRUE
-      )) {
-        stop("Package 'IlluminaHumanMethylationEPICv2anno.20a1.hg38' ",
-             "must be installed to use this function.",
-             call. = FALSE
-        )
-      }
-      manifest <- data.frame(IlluminaHumanMethylationEPICv2anno.20a1.hg38::Locations)
-    }
-  } else {
-    manifest <- array_manifest
-  }
+  manifest <- .resolveManifest(array_manifest)
   #### Get HVPs ####
   full_manifest <- cbind(TargetID = rownames(manifest), manifest) |>
     # Select necessary columns in case there is more
@@ -370,95 +490,28 @@ findVML <- function(methylation_data,
   #### Identify sparse Variable Methylated Probes####
   message("Identifying sparse Variable Methylated Probes")
   # Convert the full manifest to a GenomicRanges object
-  seqnames_full_manifest_gr <- table(full_manifest$chr)
-  full_manifest_gr <- GenomicRanges::GRanges(
-    seqnames = S4Vectors::Rle(names(seqnames_full_manifest_gr),
-                              # Number of chromosome; as.numeric to convert from
-                              #  table to numeric vector
-                              as.numeric(seqnames_full_manifest_gr)),
-    ranges = IRanges::IRanges(full_manifest$pos,
-      end = full_manifest$pos,
-      names = full_manifest$TargetID
-    ),
-    # Rle() run length encodes the vector itself, so the strands only have to be
-    # walked once rather than once for the values and again for the lengths
-    strand = S4Vectors::Rle(as.character(full_manifest$strand))
-  )
-
-  # Group the probes into regions to detect sVMPs
-  regions_full_manifest <- GenomicRanges::reduce(full_manifest_gr,
-                                                 with.revmap = TRUE,
-                                                 min.gapwidth = max_distance)
-  # Add the number of probes in each region
-  S4Vectors::mcols(regions_full_manifest)$n_probes <- vapply(S4Vectors::mcols(regions_full_manifest)$revmap,
-    length,
-    FUN.VALUE = numeric(1)
-  )
-  # Substitute revmap with the name of the probes in each region
-  S4Vectors::mcols(regions_full_manifest)$probes <- lapply(S4Vectors::mcols(regions_full_manifest)$revmap,
-                                                           map_revmap_names,
-                                                           full_manifest)
-  # Remove revmap mcol
-  S4Vectors::mcols(regions_full_manifest)$revmap <- NULL
+  # Group every probe into regions, so that the probes which sit alone can
+  # be told apart from those that have neighbours
+  regions_full_manifest <- .probeToRegions(full_manifest, max_distance,
+                                         "n_probes")
   # Keep elements with only one probe
-  lonely_probes <- regions_full_manifest[(GenomicRanges::elementMetadata(regions_full_manifest)[, "n_probes"] <= 1)]
+  lonely_probes <- regions_full_manifest[
+    (GenomicRanges::elementMetadata(regions_full_manifest)[, "n_probes"] <= 1)]
   lonely_probes <- S4Vectors::mcols(lonely_probes)$probes |>
     unlist()
 
   #### Identify VMRs####
   message("Identifying Variable Methylated Regions...")
   # convert the highly variable probes data frame to a GenomicRanges object
-  seqnames_gr <- table(manifest_hvp$chr)
-  gr <- GenomicRanges::GRanges(
-    # Number of chromosome; as.numeric to convert from table to numeric vector
-    seqnames = S4Vectors::Rle(names(seqnames_gr), as.numeric(seqnames_gr)),
-    ranges = IRanges::IRanges(manifest_hvp$pos,
-      end = manifest_hvp$pos,
-      names = manifest_hvp$TargetID
-    ),
-    strand = S4Vectors::Rle(as.character(manifest_hvp$strand)),
-    var_score = manifest_hvp$var_score
-  ) # Metadata
-
-  # Create the regions
-  candidate_VMRs <- GenomicRanges::reduce(gr,
-                                          with.revmap = TRUE,
-                                          min.gapwidth = max_distance)
-  # Add the number of probes in each region
-  S4Vectors::mcols(candidate_VMRs)$n_VMPs <- vapply(S4Vectors::mcols(candidate_VMRs)$revmap,
-    length,
-    FUN.VALUE = numeric(1)
-  )
-  # Substitute revmap with the name of the probes in each VMR
-  S4Vectors::mcols(candidate_VMRs)$probes <- lapply(S4Vectors::mcols(candidate_VMRs)$revmap,
-                                                    map_revmap_names,
-                                                    manifest_hvp)
-  # Remove revmap mcol
-  S4Vectors::mcols(candidate_VMRs)$revmap <- NULL
+  # Group the highly variable probes into candidate regions
+  candidate_VMRs <- .probeToRegions(manifest_hvp, max_distance, "n_VMPs")
 
   ### Capture canonical VMRs ###
   message("Applying correlation filter to Variable Methylated Regions...")
-  VMRs <- candidate_VMRs[(GenomicRanges::elementMetadata(candidate_VMRs)[, "n_VMPs"] > 1)]
-  ### Check for correlation between probes only if we have VMRs
-  if (length(VMRs) > 0) {
-    # Compute the median correlation of each region
-    VMRs <- medCorVMR(VML = VMRs, methylation_data = methylation_data)
-    # Remove VMRs whose CpGs are not correlated
-    VMRs <- VMRs[(GenomicRanges::elementMetadata(VMRs)[, "median_correlation"] > cor_threshold)]
-  } else {
-    warning("No VMRs were found in this data set")
-  }
+  VMRs <- .findVMRs(candidate_VMRs, methylation_data, cor_threshold)
 
   ### Capture sVMPs ###
-  single_probe_region <- lengths(GenomicRanges::elementMetadata(candidate_VMRs)[, "probes"]) == 1
-  is_sVMP <- logical(length(candidate_VMRs))
-  is_sVMP[single_probe_region] <- unlist(
-    GenomicRanges::elementMetadata(candidate_VMRs)[, "probes"][single_probe_region]
-  ) %in% lonely_probes
-  sVMPs <- candidate_VMRs[is_sVMP]
-  # Add a column of NAs under the name of median_correlation to match the VMRs
-  S4Vectors::mcols(sVMPs)$median_correlation <- rep(NA,
-                                                        nrow(S4Vectors::mcols(sVMPs)))
+  sVMPs <- .findSVMPs(candidate_VMRs, lonely_probes)
 
   ### Make final GRanges object ####
   VML <- c(VMRs, sVMPs)
