@@ -1,3 +1,43 @@
+#' Fit one LASSO model and return the variables it selects
+#'
+#' Fits a LASSO model, choosing lambda by k-fold cross-validation, and returns
+#' the names of the variables whose coefficient at that lambda is non-zero. The
+#' covariates are left unpenalized so that LASSO keeps them in every fit, and
+#' they are dropped from the returned selection because they are not variables
+#' of interest.
+#'
+#' @param x Predictor matrix. Its last `ncol_covariates` columns are the
+#' covariates.
+#' @param y Response matrix, i.e. the summarized methylation of one VML.
+#' @param ncol_covariates Number of covariate columns at the right of `x`.
+#' @param covariate_names Names of the covariates, removed from the selection.
+#'
+#' @return A character vector with the names of the selected variables.
+#' @noRd
+.lassoSelect <- function(x, y, ncol_covariates, covariate_names) {
+  coefficients <- stats::coef(
+    glmnet::cv.glmnet(
+      x = x, # Variables
+      y = y, # Response
+      alpha = 1,
+      nfolds = 5,
+      # Unpenalize the variables in covariates (i.e., force LASSO to keep them
+      # in all the situations)
+      penalty.factor = c(
+        rep(1, ncol(x) - ncol_covariates),
+        rep(0, ncol_covariates)
+      )
+    ),
+    s = "lambda.min"
+  )
+  # Keep the variables with a non-zero coefficient, dropping the intercept
+  coefficients <- coefficients[abs(coefficients[, 1]) > 0, ]
+  selected <- names(coefficients)[-1]
+  # The covariates are always kept by the fit, so they are not a selection
+  selected[!selected %in% covariate_names]
+}
+
+
 #' Selection of relevant environment and genotype variables associated with
 #' Variably Methylated Loci (VML)
 #'
@@ -249,26 +289,11 @@ selectVariables <- function(VML_wSNPs,
     #### Genotype only model ####
     # Get coefficients with the optimal lambda found by k-fold cross-validation
     if (any_snp && ncol(genot_VMLi) >= 2) { # glmnet requires 2+ predictor columns
-      coef_genot <- stats::coef(
-        glmnet::cv.glmnet(
-          x = genot_VMLi, # Variables
-          y = summVMLi, # Response
-          alpha = 1,
-          nfolds = 5,
-          penalty.factor = c(
-            rep(1, ncol(genot_VMLi) - ncol_covariates),
-            rep(0, ncol_covariates)
-          )
-        ),
-        # Unpenalize the variables in covariates (i.e., force LASSO to keep them
-        #  in all the situations)
-        s = "lambda.min"
+      selected_vars_genot <- .lassoSelect(
+        x = genot_VMLi, y = summVMLi,
+        ncol_covariates = ncol_covariates,
+        covariate_names = colnames(covariates)
       )
-      # Select the variables with a coefficient > 0
-      coef_genot <- coef_genot[abs(coef_genot[, 1]) > 0, ]
-      selected_vars_genot <- names(coef_genot)[-1]
-      # Remove covariates from selected variables
-      selected_vars_genot <- selected_vars_genot[!selected_vars_genot %in% colnames(covariates)]
     } else if (any_snp) {
       # Only one SNP and no covariates: glmnet needs 2+ columns to run, and
       # with a single candidate there is nothing to select against, so keep it
@@ -281,53 +306,22 @@ selectVariables <- function(VML_wSNPs,
     # Get coefficients with the optimal lambda found by k-fold cross-validation
     # Catch scenario where users would not add environmental variables
     if (!is.null(environ_VMLi)) {
-      coef_env <- stats::coef(
-        glmnet::cv.glmnet(
-          x = environ_VMLi, # Variables
-          y = summVMLi, # Response
-          alpha = 1,
-          nfolds = 5,
-          # Unpenalize the variables in covariates (i.e., force LASSO to keep
-          # them in all the situations)
-          penalty.factor = c(
-            rep(1, ncol(environ_VMLi) - ncol_covariates),
-            rep(0, ncol_covariates)
-          )
-        ),
-        s = "lambda.min"
+      selected_vars_env <- .lassoSelect(
+        x = environ_VMLi, y = summVMLi,
+        ncol_covariates = ncol_covariates,
+        covariate_names = colnames(covariates)
       )
-      # Select the variables with a coefficient > 0
-      coef_env <- coef_env[abs(coef_env[, 1]) > 0, ]
-      # Remove the intercept from the variables
-      selected_vars_env <- names(coef_env)[-1]
-      # Remove covariates from selected variables
-      selected_vars_env <- selected_vars_env[!selected_vars_env %in% colnames(covariates)]
+
       #### Joint (environment + genotype) ####
       if (any_snp) {
         # only when we have Genotype and Environmental variables.
         # Get coefficients with the optimal lambda found by k-fold
         # cross-validation
-        coef_joint <- stats::coef(
-          glmnet::cv.glmnet(
-            x = environ_genot_VMLi, # Variables
-            y = summVMLi, # Response
-            alpha = 1,
-            nfolds = 5,
-            # Unpenalize the variables in covariates (i.e., force LASSO to keep
-            #  them in all the situations)
-            penalty.factor = c(
-              rep(1, ncol(environ_genot_VMLi) - ncol_covariates),
-              rep(0, ncol_covariates)
-            )
-          ),
-          s = "lambda.min"
+        selected_vars_joint <- .lassoSelect(
+          x = environ_genot_VMLi, y = summVMLi,
+          ncol_covariates = ncol_covariates,
+          covariate_names = colnames(covariates)
         )
-        # Select the variables with an abs(coefficient) > 0
-        coef_joint <- coef_joint[abs(coef_joint[, 1]) > 0, ]
-        # Remove the intercept from the variables
-        selected_vars_joint <- names(coef_joint)[-1]
-        #  Remove covariates from selected variables
-        selected_vars_joint <- selected_vars_joint[!selected_vars_joint %in% colnames(covariates)]
       } else {
         selected_vars_joint <- character(0)
       }
