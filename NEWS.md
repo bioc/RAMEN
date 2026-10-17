@@ -1,14 +1,33 @@
-# RAMEN 2.99.0
+# RAMEN 2.99.1
 
-This minor version prepares RAMEN for submission to Bioconductor. It is mostly a
-formatting and packaging release: apart from the change to the seed described
-below, the analysis functions return the same results as in 2.1.2, and the
-error and warning messages are unchanged.
+This minor version prepares RAMEN for submission to Bioconductor. Apart from
+the removal of the `seed` argument described below, the analysis functions
+return the same results as in 2.1.2, and the error and warning messages are
+unchanged.
 
-  - `selectVariables()` and `nullDistGE()` no longer leave the global random
-  number generator reseeded. The `seed` argument now applies for the duration
-  of the call only: the RNG state found on entry is restored when the function
-  returns.
+  - The `seed` argument was removed from `selectVariables()` and
+  `nullDistGE()`. Call `set.seed()` before either function instead.
+  As a consequence, `nullDistGE()` no longer hands the same seed to
+  `selectVariables()` in every permutation, so the cross-validation folds now
+  differ from one permutation to the next instead of being held fixed. Null
+  distributions computed with this version therefore differ numerically from
+  those computed with earlier ones.
+  - big fix: `selectVariables()` no longer fails when `environmental_matrix` 
+  holds a single variable and no covariates are given. 
+  - `findVML()`, `selectVariables()` and `lmGE()` were split into internal
+  helper functions, so that each step of their work can be read on its own.
+  The three are now roughly half their former length. This is a refactoring
+  only: all three return exactly what they returned before.
+  - Every package listed in `Imports` now has a matching `importFrom()` entry
+  in NAMESPACE. These are collected in `R/RAMEN-package.R` rather than spread
+  across the individual function files.
+  - The vignette calls functions by name instead of prefixing them with
+  `package::`, and every one of its chunks now has a label.
+  - The vignette Introduction describes how RAMEN fits into the Bioconductor
+  ecosystem and how it relates to other Bioconductor packages.
+  - Package metadata was updated: `biocViews` terms were added, the R
+  dependency was raised to 4.6.0, and the `Title` and `Description` fields
+  were revised.
 
 # RAMEN 2.1.2
 
