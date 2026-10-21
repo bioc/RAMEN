@@ -590,7 +590,13 @@ lmGE <- function(selected_variables,
   #### Select best winning model ####
   winning_models <- foreach::foreach(i = seq_len(nrow(selected_variables)),
                                      .combine = "rbind",
-                                     .export = "empty_lists") %dopar% { # For every VML
+                                     .export = c("empty_lists",
+                                                 ".fitModels",
+                                                 ".modelSummary",
+                                                 ".bestModels",
+                                                 ".winningModel",
+                                                 ".decomposeVariance")
+                                     ) %dopar% { # For every VML
     #### Prepare data sets ####
     # Create the data frame with all the information for each VML.
     # Single-bracket indexing keeps each element wrapped in a length-1 list,
