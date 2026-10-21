@@ -1,9 +1,10 @@
 # RAMEN 3.0.0
 
-This version reflects RAMEN incorporation to Bioconductor. Apart from
-the removal of the `seed` argument described below, the analysis functions
-return the same results as in 2.1.2, and the error and warning messages are
-unchanged.
+This version reflects RAMEN's 
+[incorporation to Bioconductor](https://github.com/Bioconductor/BiocContributions/issues/175).
+Apart from the removal of the `seed` argument described below, the analysis 
+functionsreturn the same results as in 2.1.2, and the error and warning messages
+are unchanged.
 
   - The `seed` argument was removed from `selectVariables()` and
   `nullDistGE()`. Call `set.seed()` before either function instead.
@@ -116,7 +117,8 @@ change and the `summarizeVML()` duplicate-index check noted above.
 # RAMEN 2.1.0 - July 14, 2026
 
 This minor version presents a couple of changes that improve the integration of
-RAMEN with GenomicRanges objects and Bioconductor: 
+RAMEN with GenomicRanges objects and Bioconductor:
+
   - `findVML()` outputs a GRanges object for the identified VML instead of
   a data frame. 
   - Downstream functions (i.e., `summarizeVML()`, `findCisSNPs()`, 
@@ -143,7 +145,10 @@ of the package, such as:
   - Reduced data casting and conditionals inside the functions. 
   - Improved error messages across all functions. 
   
-These changes were motivated by the rOpenSci peer review process.
+These changes were motivated by the 
+[rOpenSci peer review process](https://github.com/ropensci/software-review/issues/743),
+and reflect the incorporation of RAMEN to 
+[R-universe](https://ropensci.r-universe.dev/RAMEN).
 
 # RAMEN 2.0.1 - June 30, 2026
 
