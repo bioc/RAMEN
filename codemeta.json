@@ -8,7 +8,7 @@
   "codeRepository": "https://github.com/ropensci/RAMEN/",
   "issueTracker": "https://github.com/ropensci/RAMEN/issues",
   "license": "https://spdx.org/licenses/GPL-3.0",
-  "version": "2.99.3",
+  "version": "2.99.4",
   "programmingLanguage": {
     "@type": "ComputerLanguage",
     "name": "R",
@@ -294,7 +294,7 @@
     },
     "SystemRequirements": null
   },
-  "fileSize": "3543.326KB",
+  "fileSize": "3543.751KB",
   "citation": [
     {
       "@type": "ScholarlyArticle",
@@ -429,7 +429,7 @@
       ],
       "name": "RAMEN: Regional Association of Methylome variability with the Exposome and geNome",
       "url": "https://github.com/ropensci/RAMEN",
-      "description": "R package version 2.99.3"
+      "description": "R package version 2.99.4"
     }
   ],
   "releaseNotes": "https://github.com/ropensci/RAMEN/blob/main/NEWS.md",

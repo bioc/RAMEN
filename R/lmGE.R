@@ -66,12 +66,17 @@
 #' @param z_group Group label of the variables in `z_i`, e.g. "E".
 #' @param joint Whether to fit the additive and interaction models of every
 #' pairing of `y_i` with `z_i`.
+#' @param summarize The function used to fit and summarize one model, normally
+#' `.modelSummary()`. It is taken as an argument rather than looked up, because
+#' this function runs on parallel workers which may hold a different build of
+#' the package in their own library, and a look-up would then resolve against
+#' that build instead of this one.
 #'
 #' @return One row per fitted model, or NULL when there is nothing to fit.
 #' @noRd
 .fitModels <- function(y_i, y_has_vars, y_group, data, basal_model_formula,
-                       model_selection, z_i = NULL, z_has_vars = NULL,
-                       z_group = NULL, joint = FALSE) {
+                       model_selection, summarize, z_i = NULL,
+                       z_has_vars = NULL, z_group = NULL, joint = FALSE) {
   # Nothing to fit
   if (!y_has_vars) return(NULL)
   fit_joint <- isTRUE(joint) && isTRUE(z_has_vars)
@@ -82,7 +87,7 @@
   models <- vector("list", length(y_i) * (1 + 2 * n_z))
   pos <- 0L
   for (y in y_i) {
-    model_y <- .modelSummary(
+    model_y <- summarize(
       formula = paste("DNAme ~", make.names(y), "+", basal_model_formula),
       data = data,
       model_group = y_group,
@@ -94,7 +99,7 @@
     if (!fit_joint) next
     for (z in z_i) {
       # Fit the additive model
-      model_additive <- .modelSummary(
+      model_additive <- summarize(
         formula = paste("DNAme ~", make.names(y), "+", make.names(z), "+",
                         basal_model_formula),
         data = data,
@@ -103,7 +108,7 @@
         model_selection = model_selection
       )
       # Fit the interaction model
-      model_interaction <- .modelSummary(
+      model_interaction <- summarize(
         formula = paste0("DNAme ~ ", make.names(y), " + ", make.names(z),
                          " + ", make.names(y), "*", make.names(z), " + ",
                          basal_model_formula),
@@ -635,7 +640,7 @@ lmGE <- function(selected_variables,
     models_g_involving_df <- .fitModels(
       y_i = snps_i, y_has_vars = genot_i_has_vars, y_group = "G",
       z_i = envs_i, z_has_vars = env_i_has_vars, z_group = "E",
-      joint = TRUE,
+      joint = TRUE, summarize = .modelSummary,
       data = full_data_vml_i_df,
       basal_model_formula = basal_model_formula,
       model_selection = model_selection
@@ -643,6 +648,7 @@ lmGE <- function(selected_variables,
     #### Fit E models ####
     models_e_df <- .fitModels(
       y_i = envs_i, y_has_vars = env_i_has_vars, y_group = "E",
+      summarize = .modelSummary,
       data = full_data_vml_i_df,
       basal_model_formula = basal_model_formula,
       model_selection = model_selection
