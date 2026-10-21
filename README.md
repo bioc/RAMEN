@@ -56,11 +56,13 @@ You can install the latest version of RAMEN from
 [GitHub](https://github.com/) with:
 
 ``` r
-## Install RAMEN
+## Install RAMEN (recommended option)
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
-
 BiocManager::install("RAMEN")
+
+## Alternatively install the RAMEN package from GitHub
+BiocManager::install("ropensci/RAMEN")
 ```
 
 ## Usage
@@ -232,7 +234,7 @@ selected_variables <- selectVariables(
   summarized_methyl_VML = summarized_methyl_VML
 )
 #> Loading required package: Matrix
-#> Loaded glmnet 5.0
+#> Loaded glmnet 5.1
 #> Loading required package: rngtools
 
 head(selected_variables)

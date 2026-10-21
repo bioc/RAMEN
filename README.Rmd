@@ -61,11 +61,13 @@ You can install the latest version of RAMEN from
 [GitHub](https://github.com/) with:
 
 ``` r
-## Install RAMEN
+## Install RAMEN (recommended option)
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
-
 BiocManager::install("RAMEN")
+
+## Alternatively install the RAMEN package from GitHub
+BiocManager::install("ropensci/RAMEN")
 ```
 
 ## Usage
