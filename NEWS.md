@@ -1,6 +1,6 @@
-# RAMEN 2.99.1
+# RAMEN 3.0.0
 
-This minor version prepares RAMEN for submission to Bioconductor. Apart from
+This version reflects RAMEN incorporation to Bioconductor. Apart from
 the removal of the `seed` argument described below, the analysis functions
 return the same results as in 2.1.2, and the error and warning messages are
 unchanged.
@@ -28,6 +28,11 @@ unchanged.
   - Package metadata was updated: `biocViews` terms were added, the R
   dependency was raised to 4.6.0, and the `Title` and `Description` fields
   were revised.
+
+Claude Opus 5 was used to assist the function refactoring, using specific 
+prompts for the blocks that were to be moved to internal helpers. All 
+modifications were manually reviewed, corrected where necessary, and fully 
+validated by the package developer.
 
 # RAMEN 2.1.2
 
